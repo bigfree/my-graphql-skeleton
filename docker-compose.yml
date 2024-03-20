@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  postgres:
+    container_name: graphql_workshop_pg
+    image: postgres:latest
+    volumes:
+      - graphql_workshop_pg:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: workshop
+    ports:
+      - "5432:5432"
+
+  api:
+    build:
+      context: ./.docker/api
+      dockerfile: Dockerfile
+      target: development
+    volumes:
+      - ./api:/usr/src/app
+      - /api/node_modules
+    command: yarn start:dev
+#    depends_on:
+#      - postgres
+    ports:
+      - '4000:4000'
+      - '5555:5555'
+
+  redis:
+    image: redis:latest
+    volumes:
+      - graphql_workshop_redis:/data
+    environment:
+      ALLOW_EMPTY_PASSWORD: yes
+      REDIS_HOST: 127.0.0.1
+    ports:
+      - '6379:6379'
+
+#  frontend:
+#    build:
+#      context: ./frontend
+#      dockerfile: ./Dockerfile
+#    stdin_open: true
+#    volumes:
+#      - ./frontend/:/frontend
+#    ports:
+#      - "3000:3000"
+#    command: yarn dev
+#
+volumes:
+  graphql_workshop_pg:
+  graphql_workshop_redis:

@@ -1,0 +1,126 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// https://github.com/unlight/prisma-nestjs-graphql
+generator nestgraphql {
+  provider               = "node node_modules/prisma-nestjs-graphql"
+  output                 = "../src/@generated"
+  purgeOutput            = true
+  reExport               = Directories
+  fields_Validator_from  = "class-validator"
+  fields_Validator_input = true
+  fields_Scalars_from    = "graphql-scalars"
+  fields_Scalars_input   = true
+  fields_Scalars_output  = true
+  fields_TF_from         = "type-fest"
+}
+
+// https://github.com/notiz-dev/prisma-dbml-generator#additional-options
+// https://dbdiagram.io/d
+generator dbml {
+  provider   = "prisma-dbml-generator"
+  output     = "../dbml"
+  outputName = "mymodel.dbml"
+}
+
+// https://github.com/pantharshit00/prisma-docs-generator
+generator docs {
+  provider = "node node_modules/prisma-docs-generator"
+}
+
+model User {
+  /// @HideField({ match: 'User*@(Create|Update)*Input' })
+  id         String     @id @default(cuid())
+  /// @Validator.IsString()
+  /// @Validator.IsNotEmpty()
+  /// @Validator.IsEmail()
+  /// @FieldType('Scalars.GraphQLEmailAddress')
+  email      String     @unique @db.VarChar(100)
+  type       UserType   @default(USER)
+  role       UserRole[]
+  /// @HideField({ match: 'User*@(Where)*Input', output: true })
+  password   Password   @relation(fields: [passwordId], references: [id], onDelete: Cascade)
+  /// @HideField({ match: 'User*@(Where)*Input', output: true })
+  passwordId String     @unique
+  profile    Profile?
+  /// @FieldType('DateTime')
+  createdAt  DateTime?  @default(now())
+
+  // @@unique(name: "fullname", fields: [firstName, lastName])
+  @@index(fields: [id, email])
+}
+
+model Password {
+  /// @HideField({ match: 'Password*@(Create|Update)*Input' })
+  id       String @id @default(cuid())
+  /// @Validator.IsString()
+  /// @Validator.IsNotEmpty()
+  password String
+  user     User?
+}
+
+model Profile {
+  /// @HideField({ match: 'Profile*@(Create|Update)*Input' })
+  id        String    @id @default(cuid())
+  firstName String    @db.VarChar(50)
+  lastName  String    @db.VarChar(50)
+  username  String?   @unique @db.VarChar(50)
+  bio       String?   @db.Text
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String    @unique
+  /// @FieldType('DateTime')
+  createdAt DateTime? @default(now())
+
+  @@unique(name: "fullname", fields: [firstName, lastName], map: "fullname")
+  @@index(fields: [firstName, lastName])
+}
+
+model Log {
+  /// @HideField({ match: 'Log*@(Create|Update)*Input' })
+  id        String    @id @default(cuid())
+  from      LogFrom?
+  type      LogType   @default(LOG)
+  /// @FieldType('JSON')
+  /// @PropertyType('TF.JsonObject')
+  data      Json?     @db.Json
+  /// @FieldType('DateTime')
+  createdAt DateTime? @default(now())
+
+  // https://www.prisma.io/docs/orm/prisma-schema/data-model/indexes#block-range-index-brin
+  @@index([createdAt(ops: TimestampBloomOps)], type: Brin)
+}
+
+enum UserRole {
+  ROLE_GUEST
+  ROLE_USER
+  ROLE_ADMIN
+}
+
+enum UserType {
+  GUEST
+  USER
+  ADMIN
+}
+
+enum LogType {
+  DEBUG
+  LOG
+  ERROR
+  VERBOSE
+  WARN
+}
+
+enum LogFrom {
+  API
+  APP
+}
